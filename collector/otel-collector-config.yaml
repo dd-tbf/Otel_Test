@@ -1,0 +1,104 @@
+# OpenTelemetry Collector Configuration
+# Simple configuration for metrics collection and forwarding to Datadog
+
+receivers:
+  # OTLP receiver for receiving metrics from the Python app
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Host metrics receiver for system-level metrics
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+
+processors:
+  # Batch processor for efficient export
+  batch:
+    timeout: 10s
+    send_batch_size: 512
+    send_batch_max_size: 1024
+
+  # Resource processor to add/modify resource attributes
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "${env:DD_ENV}"
+        action: upsert
+      - key: service.version
+        value: "${env:DD_VERSION}"
+        action: upsert
+      - key: env
+        value: "${env:DD_ENV}"
+        action: upsert
+      - key: version
+        value: "${env:DD_VERSION}"
+        action: upsert
+
+  # Memory limiter to prevent OOM issues
+  memory_limiter:
+    limit_mib: 256
+    spike_limit_mib: 64
+    check_interval: 1s
+
+exporters:
+  # Datadog exporter
+  datadog:
+    api:
+      key: "${env:DD_API_KEY}"
+      site: "${env:DD_SITE}"
+    # Metrics configuration
+    metrics:
+      # Delta temporality for counters (recommended for Datadog)
+      delta_ttl: 3600
+
+  # Debug exporter for troubleshooting
+  debug:
+    verbosity: detailed
+    sampling_initial: 2
+    sampling_thereafter: 10
+
+  # Logging exporter for console output
+  logging:
+    loglevel: info
+
+service:
+  # Extensions
+  extensions: [health_check]
+  
+  # Telemetry configuration for collector's own metrics
+  telemetry:
+    logs:
+      level: "info"
+      encoding: "json"
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888
+
+  pipelines:
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors: [memory_limiter, resource, batch]
+      exporters: [datadog, debug, logging]
+
+extensions:
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: "/health"

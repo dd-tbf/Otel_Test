@@ -1,0 +1,12 @@
+# Flask web framework
+flask==3.0.3
+
+# OpenTelemetry core packages
+opentelemetry-api==1.26.0
+opentelemetry-sdk==1.26.0
+
+# OpenTelemetry OTLP exporter
+opentelemetry-exporter-otlp-proto-grpc==1.26.0
+
+# OpenTelemetry semantic conventions
+opentelemetry-semantic-conventions==0.47b0
