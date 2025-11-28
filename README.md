@@ -41,6 +41,105 @@ curl http://localhost:5000
 curl http://localhost:5000/metrics-info
 ```
 
+## 🛠️ Using the Makefile
+
+This project includes a Makefile that simplifies common tasks. Below are all available commands:
+
+### Getting Help
+```bash
+# Show all available commands with descriptions
+make help
+```
+
+### Setup and Deployment
+```bash
+# Create .env file from template (automatically done by 'make start')
+make setup
+
+# Start all services (automatically runs setup if needed)
+make start
+
+# Start services with load generator for testing
+make load-test
+
+# Rebuild all images from scratch
+make build
+```
+
+### Service Management
+```bash
+# Stop all services
+make stop
+
+# Restart all services (without rebuilding)
+make restart
+
+# Stop services and remove containers, networks, and volumes
+make clean
+```
+
+### Monitoring and Debugging
+```bash
+# Show service status and available endpoints
+make status
+
+# Check health of all services (application + collector)
+make health
+
+# Show real-time logs for all services
+make logs
+
+# Show information about expected Datadog metrics
+make info
+```
+
+### Testing
+```bash
+# Run basic functionality tests
+make test
+
+# Generate test metrics manually
+make metrics
+```
+
+### Common Workflows
+
+**First time setup:**
+```bash
+make setup  # Creates .env file
+# Edit .env to add your DD_API_KEY
+make start  # Starts all services
+make status # Verify everything is running
+```
+
+**Daily development:**
+```bash
+make start   # Start services
+make logs    # Monitor logs
+make health  # Check service health
+make stop    # Stop when done
+```
+
+**Testing metrics:**
+```bash
+make start       # Start services
+make metrics     # Generate test data
+make info        # Show expected metrics
+# Check Datadog dashboard for metrics
+```
+
+**Load testing:**
+```bash
+make load-test   # Start with continuous load generator
+make logs        # Watch requests being made
+# Metrics will continuously flow to Datadog
+```
+
+**Cleanup:**
+```bash
+make clean  # Complete cleanup of all containers and volumes
+```
+
 ## 📊 Metrics Available in Datadog
 
 Once the services are running, you should see the following metrics in your Datadog dashboard:
