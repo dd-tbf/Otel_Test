@@ -1,15 +1,73 @@
-# Simple OpenTelemetry Python Server with Datadog Metrics
+# Simple OpenTelemetry Python Server with Full Datadog Observability
 
-A simple dockerized Python Flask server that collects and exports metrics to Datadog via OpenTelemetry Collector.
+A complete dockerized Python Flask server demonstrating **metrics, traces, and logs** with full correlation, exported to Datadog via OpenTelemetry Collector.
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌───────────────────┐    ┌──────────────┐
-│  Python Server  │───▶│  OTel Collector   │───▶│   Datadog    │
-│   (Flask + OT)  │    │ (Datadog Exporter)│    │   Platform   │
-└─────────────────┘    └───────────────────┘    └──────────────┘
+┌─────────────────────────────────────────┐
+│         Python Server (Flask)           │
+│  ┌──────────┐ ┌─────────┐ ┌─────────┐ │
+│  │ Metrics  │ │ Traces  │ │  Logs   │ │
+│  │ (OTLP)   │ │ (OTLP)  │ │ (OTLP)  │ │
+│  └─────┬────┘ └────┬────┘ └────┬────┘ │
+│        └───────────┼──────────┬─┘      │
+└────────────────────┼──────────┼────────┘
+                     │          │
+                     ▼          ▼
+         ┌───────────────────────────────┐
+         │   OpenTelemetry Collector     │
+         │  • Receive (OTLP)             │
+         │  • Process (batch, enrich)    │
+         │  • Export (Datadog)           │
+         └───────────────┬───────────────┘
+                         │
+                         ▼
+              ┌──────────────────────┐
+              │   Datadog Platform   │
+              │  • APM (Traces)      │
+              │  • Metrics           │
+              │  • Logs (correlated) │
+              │  • Service Map       │
+              └──────────────────────┘
 ```
+
+## 🎯 Observability Signals
+
+This project demonstrates all three pillars of observability:
+
+### 📊 **Metrics**
+- **Custom application metrics** - You define and control
+  - HTTP request counters (`http_requests_total`)
+  - Request duration histograms (`http_request_duration_seconds`)
+  - Active connections gauge (`active_connections`)
+  - Simulated resource usage (CPU, memory)
+- **APM metrics** - Auto-generated from traces via Datadog connector
+  - Request hits per endpoint (`trace.flask.request.hits`)
+  - Request duration with percentiles (`trace.flask.request.duration`)
+  - Error counts by type (`trace.flask.request.errors`)
+  - Apdex performance scores (`trace.flask.request.apdex`)
+- **System metrics** - Real host metrics from collector
+  - CPU, memory, and disk usage
+
+### 🔍 **Distributed Traces**
+- **Automatic instrumentation** - Flask requests auto-traced
+- **Custom spans** - Manual instrumentation for key operations
+- **Service dependencies** - Visualize request flow
+- **Performance insights** - Identify bottlenecks and slow endpoints
+
+### 📝 **Structured Logs**
+- **Correlated logging** - Every log includes `trace_id` and `span_id`
+- **Contextual information** - Rich metadata with each log entry
+- **Multiple log levels** - INFO, WARNING, ERROR for different scenarios
+- **Stdout output** - Logs visible in container logs and forwarded to Datadog
+
+### 🔗 **Correlation**
+The magic happens when all three signals work together:
+- **Logs → Traces**: Click a log to see the full trace
+- **Traces → Logs**: View all logs for a specific trace
+- **Metrics → Traces**: Jump from metric spike to example traces
+- **Service Map**: Visualize dependencies and health
 
 ## 🚀 Quick Start
 
@@ -224,6 +282,56 @@ curl http://localhost:13133/health
 curl http://localhost:8888/metrics
 ```
 
+### Viewing Observability Data
+
+After making requests, view them in Datadog:
+
+**1. View Traces (APM):**
+```bash
+# Make some requests
+curl http://localhost:5000/
+curl http://localhost:5000/load-test
+
+# Then go to: https://app.datadoghq.com/apm/traces
+# Filter: service:simple-python-server env:development
+```
+
+**2. View Logs:**
+```bash
+# Make requests that generate different log levels
+for i in {1..20}; do curl http://localhost:5000/load-test; done
+
+# Then go to: https://app.datadoghq.com/logs
+# Filter: service:simple-python-server
+# You'll see INFO, WARNING, and ERROR logs
+# Click on any log → Click "Trace" to see the full trace!
+```
+
+**3. View Metrics:**
+```bash
+# Generate metrics
+curl http://localhost:5000/generate-metrics
+
+# Then go to: https://app.datadoghq.com/metric/explorer
+# Search: http_requests_total
+```
+
+**4. Correlation Demo:**
+```bash
+# This will generate errors with correlated traces and logs
+for i in {1..50}; do 
+  curl -s http://localhost:5000/load-test
+  sleep 0.5
+done
+
+# In Datadog:
+# 1. Logs Explorer → Filter status:error
+# 2. Click on an error log
+# 3. Click "View Trace" button
+# 4. See the full trace with timing and all spans
+# 5. Click on error span → "Logs" tab → See all logs from that request
+```
+
 ## 📈 Expected Datadog Dashboard Views
 
 ### 1. **Request Rate Dashboard**
@@ -245,34 +353,174 @@ curl http://localhost:8888/metrics
 - Shows the flow: `simple-python-server` → `otel-collector` → `datadog`
 - Service health and dependencies
 
-## 🔍 Finding Your Metrics in Datadog
+## 🔍 Finding Your Data in Datadog
 
-### 1. **Metrics Explorer**
-- Go to: https://app.datadoghq.com/metric/explorer
-- Search for: `http_requests_total`, `cpu_usage_percent`, etc.
-- Filter by: `env:development`, `service:simple-python-server`
+### 1. **APM & Traces** 🔍
+- **URL**: https://app.datadoghq.com/apm/traces
+- **Service**: `simple-python-server`
+- **Environment**: `development`
+- **Features**:
+  - View all traces and individual requests
+  - See latency distribution and error rates
+  - Analyze flame graphs for performance
+  - Click on spans to see associated logs
 
-### 2. **Service Catalog**
-- Go to: https://app.datadoghq.com/services
-- Look for: `simple-python-server` service
-- Environment: `development`
+### 2. **Logs Explorer** 📝
+- **URL**: https://app.datadoghq.com/logs
+- **Filters**: 
+  - `service:simple-python-server`
+  - `env:development`
+- **Features**:
+  - Search logs by message, level, or custom fields
+  - Click "View Trace" to see full distributed trace
+  - Filter by ERROR, WARNING, INFO levels
+  - See trace_id and span_id in log attributes
 
-### 3. **Infrastructure**
-- Go to: https://app.datadoghq.com/infrastructure
-- Look for: Host metrics from collector
+### 3. **Metrics Explorer** 📊
+- **URL**: https://app.datadoghq.com/metric/explorer
+- **Search for**: `http_requests_total`, `cpu_usage_percent`, etc.
+- **Filter by**: `env:development`, `service:simple-python-server`
+- **Features**:
+  - Graph metrics over time
+  - Click on anomalies to see example traces
+  - Create custom dashboards
 
-### 4. **Custom Dashboards**
+### 4. **Service Catalog** 🗂️
+- **URL**: https://app.datadoghq.com/services
+- **Look for**: `simple-python-server` service
+- **Environment**: `development`
+- **Features**:
+  - Service overview with key metrics
+  - Service dependencies and map
+  - Related traces, logs, and metrics in one place
+
+### 5. **Service Map** 🗺️
+- **URL**: https://app.datadoghq.com/apm/map
+- **Features**:
+  - Visual representation of service dependencies
+  - Health status of each service
+  - Request flow and volume
+
+### 6. **Custom Dashboards** 📈
+Create a dashboard combining all signals:
+
 ```json
-// Example dashboard widget query for request rate
 {
-  "requests": [
+  "widgets": [
     {
-      "q": "sum:http_requests_total{env:development}.as_rate()",
-      "display_type": "line"
+      "definition": {
+        "title": "Request Rate",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "sum:http_requests_total{env:development,service:simple-python-server}.as_rate()"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "APM Request Latency",
+        "type": "timeseries",
+        "requests": [
+          {
+            "q": "avg:trace.flask.request{env:development,service:simple-python-server}"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "title": "Error Logs",
+        "type": "log_stream",
+        "query": "service:simple-python-server status:error"
+      }
     }
   ]
 }
 ```
+
+## 🔗 Correlating Traces and Logs in Datadog
+
+One of the most powerful features is the automatic correlation between traces and logs:
+
+### How It Works
+
+**In the Code:**
+- Every log automatically includes `trace_id` and `span_id` from the active span
+- OpenTelemetry's LoggingInstrumentor adds trace context to Python logs
+- Logs are formatted with: `trace_id=<id> span_id=<id>`
+
+**In Datadog:**
+1. **From Logs to Traces:**
+   - Open a log in Logs Explorer
+   - Click the "Trace" button (appears automatically if trace_id exists)
+   - See the complete distributed trace for that log entry
+
+2. **From Traces to Logs:**
+   - Open a trace in APM
+   - Click on any span
+   - Click "Logs" tab
+   - See all logs emitted during that span execution
+
+3. **Example Workflow:**
+   ```bash
+   # Generate some traffic
+   curl http://localhost:5000/load-test
+   ```
+   
+   Then in Datadog:
+   - Go to **Logs**: Filter for `service:simple-python-server status:error`
+   - Click on an error log
+   - Click **"View Trace"** → See the full request trace
+   - Click on the trace span → See all related logs
+   - Navigate to **Metrics** → See spike in error rate at same time
+
+### Correlation Example
+
+**Log Entry:**
+```json
+{
+  "message": "Simulated error occurred during load test",
+  "service": "simple-python-server",
+  "env": "development",
+  "status": "error",
+  "trace_id": "abc123...",   ← Links to trace
+  "span_id": "def456...",    ← Links to specific span
+  "endpoint": "/load-test",
+  "error_type": "simulated_500"
+}
+```
+
+**Corresponding Trace:**
+- Service: `simple-python-server`
+- Trace ID: `abc123...`
+- Duration: 234ms
+- Error: Yes
+- Spans: Flask request → load_test endpoint
+- All logs with matching trace_id are linked!
+
+### Testing Correlation
+
+1. **Generate an error:**
+   ```bash
+   # Keep making requests until you get a 500 error (10% chance)
+   for i in {1..20}; do curl http://localhost:5000/load-test; done
+   ```
+
+2. **Find it in Datadog Logs:**
+   - Go to Logs Explorer
+   - Filter: `service:simple-python-server status:error`
+   - Click on the error log
+
+3. **View the trace:**
+   - Click the **"Trace"** button in the log details
+   - See the full request flow, timing, and all spans
+
+4. **Verify correlation:**
+   - In the trace view, click on the error span
+   - Click **"Logs"** tab
+   - See all logs from that request (INFO → ERROR progression)
 
 ## 🧪 Load Testing
 
@@ -371,6 +619,130 @@ Your config file is mounted as a volume:
 4. Generate test data: `curl http://localhost:5000/generate-metrics`
 5. Verify in logs or Datadog
 
+## 🎓 How Observability Is Implemented
+
+### Automatic Instrumentation
+
+**Flask Auto-Instrumentation:**
+```python
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+app = Flask(__name__)
+FlaskInstrumentor().instrument_app(app)  # Automatic tracing!
+```
+- Every HTTP request automatically creates a trace
+- Span includes: method, path, status code, duration
+- No manual code needed for basic tracing
+
+**Logging Auto-Instrumentation:**
+```python
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
+
+LoggingInstrumentor().instrument(set_logging_format=True)
+```
+- Automatically adds `trace_id` and `span_id` to all log records
+- Works with Python's standard `logging` module
+- Enables correlation between logs and traces
+
+### Manual Instrumentation
+
+**Custom Spans:**
+```python
+with tracer.start_as_current_span("generate_test_metrics") as span:
+    span.set_attribute("metrics.count", num_metrics)
+    # Your code here
+```
+- Add custom spans for important operations
+- Set custom attributes for filtering and analysis
+- Nested spans show operation hierarchy
+
+**Structured Logging:**
+```python
+logger.error(
+    "Simulated error occurred",
+    extra={
+        "endpoint": "/load-test",
+        "error_type": "simulated_500"
+    }
+)
+```
+- `extra` dict becomes searchable log attributes in Datadog
+- Automatically includes trace context
+- Logs output to stdout AND sent to Datadog
+
+### Trace-Log Correlation
+
+**How it works:**
+1. FlaskInstrumentor creates a span for each request
+2. LoggingInstrumentor reads the current span context
+3. Adds `trace_id` and `span_id` to log records
+4. OTLP exporters send both traces and logs to collector
+5. Datadog Exporter preserves the correlation
+6. Datadog UI links them automatically!
+
+**Log Format:**
+```
+2024-12-01 10:30:45 - app - [ERROR] - trace_id=abc123... span_id=def456... - Error message
+                                         ↑                 ↑
+                                         |                 |
+                                    Trace Link       Span Link
+```
+
+### Resource Attributes
+
+All signals (metrics, traces, logs) share these attributes:
+```python
+resource = Resource.create({
+    ResourceAttributes.SERVICE_NAME: "simple-python-server",
+    ResourceAttributes.SERVICE_VERSION: "1.0.0",
+    ResourceAttributes.DEPLOYMENT_ENVIRONMENT: "development",
+    "env": "development",      # Datadog tag
+    "version": "1.0.0"        # Datadog tag
+})
+```
+
+These appear in Datadog as:
+- Service name for grouping
+- Environment for filtering
+- Version for deployment tracking
+
+### Datadog Connector
+
+The collector uses the **Datadog connector** to generate APM metrics from traces:
+
+```yaml
+connectors:
+  datadog/connector:  # Transforms traces → APM metrics
+
+service:
+  pipelines:
+    traces:
+      exporters: [datadog, datadog/connector]  # Send to connector
+    
+    metrics:
+      receivers: [otlp, hostmetrics, datadog/connector]  # Receive from connector
+```
+
+**What it does:**
+- Receives traces from the traces pipeline
+- Generates APM-specific metrics automatically
+- Sends those metrics to the metrics pipeline
+- Powers Datadog APM dashboards
+
+**Metrics generated:**
+- `trace.flask.request.hits` - Request count per endpoint
+- `trace.flask.request.duration` - Latency with percentiles
+- `trace.flask.request.errors` - Error counts
+- `trace.flask.request.apdex` - Performance score
+
+**Benefits:**
+- No code changes needed
+- Standard APM metrics across all services
+- Out-of-the-box Datadog APM experience
+- Complements your custom metrics
+
+**See**: `DATADOG_CONNECTOR_EXPLAINED.md` for complete details
+
 ## 🔧 Troubleshooting
 
 ### Check Collector Logs
@@ -383,10 +755,36 @@ docker compose logs otel-collector
 docker compose logs python-server
 ```
 
-### Verify Metrics Export
+### Verify Data Export
+
+**Check Metrics:**
 ```bash
-# Should show debug output of exported metrics
+docker compose logs otel-collector | grep -i "metrics"
+```
+
+**Check Traces:**
+```bash
+docker compose logs otel-collector | grep -i "traces"
+```
+
+**Check Logs:**
+```bash
+docker compose logs otel-collector | grep -i "logs"
+```
+
+**Check Datadog Exporter:**
+```bash
+# Should show all three signals being exported
 docker compose logs otel-collector | grep -i "datadog"
+```
+
+**View Application Logs (with trace correlation):**
+```bash
+# See logs with trace_id and span_id
+docker compose logs python-server
+
+# You should see lines like:
+# trace_id=abc123... span_id=def456... - Load test completed successfully
 ```
 
 ### Health Checks
@@ -404,13 +802,23 @@ docker compose ps
 ## 📚 Key Features
 
 - ✅ **Simple Setup**: Single docker-compose command
+- ✅ **Full Observability**: Metrics, traces, AND logs with correlation
 - ✅ **Production-Ready**: Proper resource attributes and tagging
-- ✅ **Debug Output**: Console logging of all exported metrics
+- ✅ **Auto-Instrumentation**: Flask automatically traced
+- ✅ **Trace-Log Correlation**: Every log linked to its trace
+- ✅ **Debug Output**: Console logging of all exported data
 - ✅ **Health Checks**: Built-in health monitoring
 - ✅ **Load Testing**: Optional continuous load generation
 - ✅ **Comprehensive Metrics**: Request, system, and custom metrics
+- ✅ **Distributed Tracing**: APM with flame graphs and service maps
+- ✅ **Structured Logging**: JSON logs with rich context
 - ✅ **Datadog Integration**: Direct export via OTLP protocol
+- ✅ **Datadog Connector**: Auto-generates APM metrics from traces
+- ✅ **No File Logging**: Logs go to stdout and Datadog (no local files)
+- ✅ **Dual Metrics**: Custom metrics + APM metrics for complete visibility
 
 ---
 
-**🎉 Your metrics should appear in Datadog within 1-2 minutes of starting the services!**
+**🎉 Your metrics, traces, and logs should appear in Datadog within 1-2 minutes of starting the services!**
+
+**🔍 Pro Tip**: Click on any error log in Datadog and then click "View Trace" to see the full request context!
