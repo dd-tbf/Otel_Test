@@ -1,8 +1,8 @@
 # OpenTelemetry Collector Configuration
-# Simple configuration for metrics collection and forwarding to Datadog
+# Complete configuration for metrics, traces, and logs forwarding to Datadog
 
 receivers:
-  # OTLP receiver for receiving metrics from the Python app
+  # OTLP receiver for receiving metrics, traces, and logs from the Python app
   otlp:
     protocols:
       grpc:
@@ -26,6 +26,40 @@ receivers:
         metrics:
           system.filesystem.utilization:
             enabled: true
+
+  # Filelog receiver to collect logs from shared volume
+  filelog:
+    include:
+      - /var/log/app/*.log
+    start_at: beginning
+    include_file_name: true
+    include_file_path: true
+    operators:
+      # Parse Python structured log format
+      - type: regex_parser
+        regex: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (?P<level>\w+) \[(?P<logger>[^\]]+)\] \[(?P<file>[^\]]+)\] \[trace_id=(?P<trace_id>[a-f0-9]+) span_id=(?P<span_id>[a-f0-9]+) resource\.service\.name=(?P<service>[^\s]+)[^\]]*\] - (?P<message>.*)'
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S,%L'
+      
+      # Set severity from log level
+      - type: severity_parser
+        parse_from: attributes.level
+        preset: default
+      
+      # Add resource attributes
+      - type: add
+        field: resource["service.name"]
+        value: EXPR(attributes.service)
+        if: 'attributes.service != nil'
+      
+      # Add trace context attributes
+      - type: trace_parser
+        trace_id:
+          parse_from: attributes.trace_id
+        span_id:
+          parse_from: attributes.span_id
+        if: 'attributes.trace_id != nil and attributes.trace_id != "0"'
 
 processors:
   # Batch processor for efficient export
@@ -57,15 +91,37 @@ processors:
     check_interval: 1s
 
 exporters:
-  # Datadog exporter
+  # Datadog exporter for metrics, traces, and logs
   datadog:
     api:
       key: "${env:DD_API_KEY}"
       site: "${env:DD_SITE}"
+    
+    # Hostname configuration
+    hostname: "${env:DD_HOSTNAME}"
+    
     # Metrics configuration
     metrics:
       # Delta temporality for counters (recommended for Datadog)
       delta_ttl: 3600
+      histograms:
+        mode: distributions
+        send_aggregation_metrics: true
+    
+    # Traces configuration
+    traces:
+      # Enable trace metrics for APM
+      compute_stats_by_span_kind: true
+      compute_top_level_by_span_kind: true
+      # Enable peer tags for service dependencies
+      peer_tags_aggregation: true
+      # Trace sampling (100% for demo)
+      trace_buffer: 500
+    
+    # Logs configuration
+    logs:
+      # Enable logs forwarding
+      # Logs will be correlated with traces automatically
 
   # Debug exporter for troubleshooting
   debug:
@@ -76,6 +132,15 @@ exporters:
   # Logging exporter for console output
   logging:
     loglevel: info
+
+connectors:
+  # Datadog connector to generate APM metrics from traces
+  datadog/connector:
+    # This connector generates trace metrics like:
+    # - trace.flask.request.hits (request count)
+    # - trace.flask.request.duration (latency)
+    # - trace.flask.request.errors (error count)
+    # These complement your custom metrics and power Datadog APM dashboards
 
 service:
   # Extensions
@@ -91,9 +156,21 @@ service:
       address: 0.0.0.0:8888
 
   pipelines:
-    # Metrics pipeline
+    # Traces pipeline - generates traces AND APM metrics via connector
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [datadog, datadog/connector, debug, logging]  # Connector added!
+    
+    # Metrics pipeline - receives custom metrics + APM metrics from connector
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics, datadog/connector]  # Connector added!
+      processors: [memory_limiter, resource, batch]
+      exporters: [datadog, debug, logging]
+    
+    # Logs pipeline - collects from file logs and OTLP
+    logs:
+      receivers: [filelog, otlp]
       processors: [memory_limiter, resource, batch]
       exporters: [datadog, debug, logging]
 
