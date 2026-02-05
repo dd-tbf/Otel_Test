@@ -95,8 +95,15 @@ os.makedirs('/var/log/app', exist_ok=True)
 # Configure Python logging with OpenTelemetry handler  
 otel_handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
 
-# Create file handler for filelog receiver
-file_handler = logging.FileHandler('/var/log/app/python-server.log')
+# Create rotating file handler for filelog receiver
+# - maxBytes: 10MB limit per file
+# - backupCount: 1 backup file (old file auto-deleted when new backup created)
+from logging.handlers import RotatingFileHandler
+file_handler = RotatingFileHandler(
+    '/var/log/app/python-server.log',
+    maxBytes=10 * 1024 * 1024,  # 10 MB
+    backupCount=1               # Keep 1 backup (auto-delete older ones)
+)
 file_handler.setLevel(logging.INFO)
 file_formatter = logging.Formatter(
     '%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace_id=%(otelTraceID)s span_id=%(otelSpanID)s resource.service.name=%(otelServiceName)s trace_sampled=%(otelTraceSampled)s] - %(message)s'
