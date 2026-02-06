@@ -43,10 +43,9 @@ This project demonstrates all three pillars of observability:
   - Active connections gauge (`active_connections`)
   - Simulated resource usage (CPU, memory)
 - **APM metrics** - Auto-generated from traces via Datadog connector
-  - Request hits per endpoint (`trace.flask.request.hits`)
-  - Request duration with percentiles (`trace.flask.request.duration`)
-  - Error counts by type (`trace.flask.request.errors`)
-  - Apdex performance scores (`trace.flask.request.apdex`)
+  - Request hits per endpoint (`trace.opentelemetry.instrumentation.flask.server.hits`)
+  - Request duration (`trace.opentelemetry.instrumentation.flask.server.duration`)
+  - Error counts (`trace.opentelemetry.instrumentation.flask.server.errors`)
 - **System metrics** - Real host metrics from collector
   - CPU, memory, and disk usage
 
@@ -424,7 +423,7 @@ Create a dashboard combining all signals:
         "type": "timeseries",
         "requests": [
           {
-            "q": "avg:trace.flask.request{env:development,service:simple-python-server}"
+            "q": "avg:trace.opentelemetry.instrumentation.flask.server.duration{env:development,service:simple-python-server}"
           }
         ]
       }
@@ -730,18 +729,17 @@ service:
 - Powers Datadog APM dashboards
 
 **Metrics generated:**
-- `trace.flask.request.hits` - Request count per endpoint
-- `trace.flask.request.duration` - Latency with percentiles
-- `trace.flask.request.errors` - Error counts
-- `trace.flask.request.apdex` - Performance score
+- `trace.opentelemetry.instrumentation.flask.server.hits` - Request count per endpoint
+- `trace.opentelemetry.instrumentation.flask.server.duration` - Request latency
+- `trace.opentelemetry.instrumentation.flask.server.errors` - Error counts
+
+Note: The metric names include `opentelemetry.instrumentation.flask.server` because we use OpenTelemetry's Flask instrumentation (not Datadog's native tracing library).
 
 **Benefits:**
 - No code changes needed
 - Standard APM metrics across all services
 - Out-of-the-box Datadog APM experience
 - Complements your custom metrics
-
-**See**: `DATADOG_CONNECTOR_EXPLAINED.md` for complete details
 
 ## 🔧 Troubleshooting
 
@@ -814,7 +812,7 @@ docker compose ps
 - ✅ **Structured Logging**: JSON logs with rich context
 - ✅ **Datadog Integration**: Direct export via OTLP protocol
 - ✅ **Datadog Connector**: Auto-generates APM metrics from traces
-- ✅ **No File Logging**: Logs go to stdout and Datadog (no local files)
+- ✅ **Log Rotation**: File logs capped at 10MB with automatic rotation and cleanup
 - ✅ **Dual Metrics**: Custom metrics + APM metrics for complete visibility
 
 ---

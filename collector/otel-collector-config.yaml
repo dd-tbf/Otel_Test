@@ -136,11 +136,10 @@ exporters:
 connectors:
   # Datadog connector to generate APM metrics from traces
   datadog/connector:
-    # This connector generates trace metrics like:
-    # - trace.flask.request.hits (request count)
-    # - trace.flask.request.duration (latency)
-    # - trace.flask.request.errors (error count)
-    # These complement your custom metrics and power Datadog APM dashboards
+    # This connector generates APM metrics from traces:
+    # - trace.opentelemetry.instrumentation.flask.server.hits
+    # - trace.opentelemetry.instrumentation.flask.server.duration
+    # - trace.opentelemetry.instrumentation.flask.server.errors
 
 service:
   # Extensions
