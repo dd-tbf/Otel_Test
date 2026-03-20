@@ -113,6 +113,8 @@ These are auto-generated from traces:
 
 ## Makefile Commands
 
+Run `make help` for a full list of targets with short descriptions.
+
 ### Setup and Deployment
 
 ```bash
@@ -135,11 +137,14 @@ make clean      # Stop and remove containers/volumes
 
 ```bash
 make status     # Show service status
-make health     # Check health of all services
+make test       # Run basic endpoint checks (/health, /, /metrics-info)
 make logs       # Show real-time logs
 make logs-app   # Show Python server logs
 make logs-collector  # Show collector logs
+make info       # Show observability signals reference
 ```
+
+The collector image includes a Docker `HEALTHCHECK` (HTTP probe on port 13133), so `docker compose ps` may show the collector as `(healthy)` after it starts.
 
 ### Testing
 
@@ -238,7 +243,7 @@ docker compose logs otel-collector | grep -i "metrics"
 docker compose logs otel-collector | grep -i "traces"
 ```
 
-### Health Checks
+### Verify services manually
 
 ```bash
 curl http://localhost:5000/health      # Application
