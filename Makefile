@@ -1,6 +1,6 @@
 # Simple OpenTelemetry Python Server Makefile
 
-.PHONY: help setup start stop logs clean test load-test status health
+.PHONY: help setup start stop logs clean test load-test status
 
 help: ## Show this help message
 	@echo "OpenTelemetry Python Server with Datadog Metrics"
@@ -53,14 +53,6 @@ status: ## Show service status
 	@echo "  Metrics Info:    http://localhost:5000/metrics-info"
 	@echo "  Collector Health: http://localhost:13133/health"
 	@echo "  Collector Metrics: http://localhost:8888/metrics"
-
-health: ## Check health of all services
-	@echo "🏥 Health Check Results"
-	@echo "======================"
-	@echo -n "Application: "
-	@curl -s -f http://localhost:5000/health > /dev/null && echo "✅ Healthy" || echo "❌ Unhealthy"
-	@echo -n "Collector: "
-	@curl -s -f http://localhost:13133/health > /dev/null && echo "✅ Healthy" || echo "❌ Unhealthy"
 
 metrics: ## Generate some test metrics
 	@echo "📈 Generating test metrics..."
@@ -119,9 +111,6 @@ rebuild: ## Rebuild and restart (useful after code changes)
 	docker compose build --no-cache
 	docker compose up -d
 	@echo "✅ Services rebuilt and restarted"
-	@echo "⏳ Waiting for services to be healthy..."
-	@sleep 10
-	make health
 
 test-observability: ## Test traces, logs, and metrics generation
 	@echo "🧪 Testing Observability Features"

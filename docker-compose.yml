@@ -22,12 +22,6 @@ services:
     volumes:
       - ./collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
       - app-logs:/var/log/app:ro  # Read application logs from shared volume
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:13133/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
     networks:
       - metrics-network
 
@@ -52,12 +46,6 @@ services:
       - app-logs:/var/log/app  # Write logs to shared volume
     depends_on:
       - otel-collector
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     networks:
       - metrics-network
 
@@ -66,8 +54,7 @@ services:
     image: curlimages/curl:8.4.0
     container_name: load-generator
     depends_on:
-      python-server:
-        condition: service_healthy
+      - python-server
     command: >
       sh -c "
       echo '🚀 Starting load generation in 30 seconds...';

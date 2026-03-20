@@ -1,6 +1,6 @@
 # Flask web framework
 flask==3.0.3
-
+setuptools<82
 # OpenTelemetry core packages
 opentelemetry-api==1.26.0
 opentelemetry-sdk==1.26.0
